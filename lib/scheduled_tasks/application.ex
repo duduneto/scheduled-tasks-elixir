@@ -11,7 +11,7 @@ defmodule ScheduledTasks.Application do
     children = [
       # Starts a worker by calling: ScheduledTasks.Worker.start_link(arg)
       # {ScheduledTasks.Worker, arg}
-      {ScheduledTasks.ScheduleSup, [[]]}
+      {ScheduledTasks.ScheduleSup, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

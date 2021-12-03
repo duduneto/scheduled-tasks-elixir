@@ -1,62 +1,35 @@
 defmodule ScheduledTasks.Schedule do
   use GenServer
+  require Logger
 
-  # CLIENT
-  def start_link(init_state \\ []) do
-    GenServer.start_link(__MODULE__, init_state, name: __MODULE__)
+  @interval 100
+
+  def start_link(start_from, opts \\ []) do
+    GenServer.start_link(__MODULE__, start_from, opts)
   end
 
-  def add(event) do
-    GenServer.cast(__MODULE__, {:add, event})
+  def get(pid) do
+    GenServer.call(pid, :get)
   end
 
-  def show do
-    GenServer.call(__MODULE__, {:view})
+  def init(start_from) do
+    st = %{
+      current: start_from,
+      timer: :erlang.start_timer(@interval, self(), :tick)
+    }
+
+    {:ok, st}
   end
 
-  def remove_last do
-    GenServer.cast(__MODULE__, :remove)
+  def handle_call(:get, _from, st) do
+    {:reply, st.current, st}
   end
 
-  # SERVER
+  def handle_info({:timeout, _timer_ref, :tick}, st) do
+    new_timer = :erlang.start_timer(@interval, self(), :tick)
+    :erlang.cancel_timer(st.timer)
 
-  def handle_cast(:remove, state) do
-    [removed_item | updated_list] = state
-    handle_remove_event(removed_item)
-    {:noreply, state}
-  end
-
-  def handle_cast({:add, new_event}, state) do
-    {:ok, ref} = handle_add_event(new_event)
-    updated_list = [ref | state]
-    {:noreply, updated_list}
-  end
-
-  def handle_call({:view}, _from, state) do
-    {:reply, state, state}
-  end
-
-  def handle_remove_event({_, ref}) do
-    Process.cancel_timer(ref)
-    {:ok, {ref}}
-  end
-
-  def handle_add_event(time_schedule) do
-    {:ok, {:interval, ref}} = :timer.send_interval(time_schedule, :dispatch_new_scheduled_task)
-    {:ok, {time_schedule, ref}}
-  end
-
-  def handle_info(:dispatch_new_scheduled_task, state) do
-    # state is list of tuples. with the first index the recently added schedule time
-    List.first(state)
-    |> dispatch_scheduled_task
-    {:noreply, state}
-  end
-
-  defp dispatch_scheduled_task(state) do
-    # state is and tuple. with the first parameter the time in ms
-    elem(state, 0)
-    |> (&(IO.puts("Dispatched at #{Integer.to_string(&1)}"))).()
+    {:noreply, %{st | current: st.current + 1, timer: new_timer}}
   end
 
 end
