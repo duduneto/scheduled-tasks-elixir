@@ -2,9 +2,8 @@ defmodule ScheduledTasks.Schedule do
   use GenServer
   require Logger
 
-  @interval 100
-
   def start_link(start_from, opts \\ []) do
+    IO.puts("Starting a Schedule")
     GenServer.start_link(__MODULE__, start_from, opts)
   end
 
@@ -13,23 +12,24 @@ defmodule ScheduledTasks.Schedule do
   end
 
   def init(start_from) do
-    st = %{
-      current: start_from,
-      timer: :erlang.start_timer(@interval, self(), :tick)
-    }
+    Process.send_after(self(), :tick, start_from)
 
-    {:ok, st}
+    {:ok, start_from}
   end
 
   def handle_call(:get, _from, st) do
     {:reply, st.current, st}
   end
 
-  def handle_info({:timeout, _timer_ref, :tick}, st) do
-    new_timer = :erlang.start_timer(@interval, self(), :tick)
-    :erlang.cancel_timer(st.timer)
+  def handle_info(:tick, state) do
+    time =
+      DateTime.utc_now()
+      |> DateTime.to_time()
+      |> Time.to_iso8601()
 
-    {:noreply, %{st | current: st.current + 1, timer: new_timer}}
+    IO.puts("The time is now: #{time}")
+
+    {:noreply, state}
   end
 
 end
